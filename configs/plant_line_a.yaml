@@ -1,0 +1,262 @@
+# TwinLine mixed-model assembly line topology.
+# 24 stations: BC-01..09 (body), PT-01..06 (paint), FA-01..09 (final assembly).
+# Instrumentation tiers: 14 rich, 5 partial, 5 manual (matches hackathon spec).
+line_id: LINE_A
+takt_seconds: 60.0
+
+shifts:
+  - id: SHIFT_1
+    start_hour: 6.0
+    end_hour: 14.0
+  - id: SHIFT_2
+    start_hour: 14.0
+    end_hour: 22.0
+
+variants:
+  - id: SEDAN
+    mix_ratio: 0.6
+    cycle_time_multiplier: 1.0
+  - id: SUV
+    mix_ratio: 0.4
+    cycle_time_multiplier: 1.05
+
+stations:
+  # --- Body Construction ---
+  - id: BC-01
+    name: Underbody Framing
+    area: BODY
+    sequence: 1
+    instrumentation: rich
+    sensors: [weld_current_a, weld_voltage_v, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-02
+    name: Side Panel Framing
+    area: BODY
+    sequence: 2
+    instrumentation: rich
+    sensors: [weld_current_a, weld_voltage_v, cycle_time_s]
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-03
+    name: Respot / Geo Station
+    area: BODY
+    sequence: 3
+    instrumentation: rich
+    sensors: [weld_current_a, dimensional_variance_mm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-04
+    name: Roof Laser Braze
+    area: BODY
+    sequence: 4
+    instrumentation: rich
+    sensors: [laser_power_w, seam_gap_mm, cycle_time_s]
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-05
+    name: Door Hang
+    area: BODY
+    sequence: 5
+    instrumentation: partial
+    sensors: [door_gap_mm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-06
+    name: Body Side Robotic Weld
+    area: BODY
+    sequence: 6
+    instrumentation: rich
+    sensors: [weld_current_a, weld_voltage_v, cycle_time_s]
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-07
+    name: Metal Finish / Deck Weld
+    area: BODY
+    sequence: 7
+    instrumentation: rich
+    sensors: [weld_current_a, dimensional_variance_mm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-08
+    name: Sealer Application
+    area: BODY
+    sequence: 8
+    instrumentation: partial
+    sensors: [bead_width_mm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: BC-09
+    name: Body-in-White Final Check
+    area: BODY
+    sequence: 9
+    instrumentation: rich
+    sensors: [dimensional_variance_mm, torque_nm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+
+  # --- Paint ---
+  - id: PT-01
+    name: Pretreatment / E-Coat
+    area: PAINT
+    sequence: 10
+    instrumentation: rich
+    sensors: [bath_conductivity_ms_cm, film_thickness_um, cycle_time_s]
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: PT-02
+    name: Primer Application
+    area: PAINT
+    sequence: 11
+    instrumentation: rich
+    sensors: [film_thickness_um, spray_pressure_bar, cycle_time_s]
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: PT-03
+    name: Basecoat Robotic Spray
+    area: PAINT
+    sequence: 12
+    instrumentation: partial
+    sensors: [film_thickness_um, cycle_time_s]
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: PT-04
+    name: Clearcoat Robotic Spray
+    area: PAINT
+    sequence: 13
+    instrumentation: rich
+    sensors: [film_thickness_um, gloss_units, cycle_time_s]
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: PT-05
+    name: Paint Visual Inspection & Touch-Up
+    area: PAINT
+    sequence: 14
+    instrumentation: manual
+    sensors: []
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: PT-06
+    name: Paint Inspection Gate
+    area: PAINT
+    sequence: 15
+    instrumentation: rich
+    sensors: [defect_count_visual, gloss_units, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: true
+    base_cycle_time_s: 60.0
+
+  # --- Final Assembly ---
+  - id: FA-01
+    name: Wiring Harness Install
+    area: FINAL_ASSEMBLY
+    sequence: 16
+    instrumentation: rich
+    sensors: [harness_continuity_ohm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-02
+    name: Instrument Panel Install
+    area: FINAL_ASSEMBLY
+    sequence: 17
+    instrumentation: rich
+    sensors: [connector_insertion_force_n, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-03
+    name: Door Trim Install
+    area: FINAL_ASSEMBLY
+    sequence: 18
+    instrumentation: partial
+    sensors: [door_trim_gap_mm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-04
+    name: Seat Install
+    area: FINAL_ASSEMBLY
+    sequence: 19
+    instrumentation: partial
+    sensors: [seat_bolt_torque_nm, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-05
+    name: Powertrain Marriage / Torque Station
+    area: FINAL_ASSEMBLY
+    sequence: 20
+    instrumentation: manual
+    sensors: []
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-06
+    name: Wheel & Tire Mount
+    area: FINAL_ASSEMBLY
+    sequence: 21
+    instrumentation: manual
+    sensors: []
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-07
+    name: Fluid Fill
+    area: FINAL_ASSEMBLY
+    sequence: 22
+    instrumentation: manual
+    sensors: []
+    can_cause_defect: false
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-08
+    name: Alignment & Fascia Fit
+    area: FINAL_ASSEMBLY
+    sequence: 23
+    instrumentation: manual
+    sensors: []
+    can_cause_defect: true
+    is_inspection_gate: false
+    base_cycle_time_s: 60.0
+  - id: FA-09
+    name: Final Inspection Gate
+    area: FINAL_ASSEMBLY
+    sequence: 24
+    instrumentation: rich
+    sensors: [dimensional_variance_mm, functional_test_score, cycle_time_s]
+    can_cause_defect: false
+    is_inspection_gate: true
+    base_cycle_time_s: 60.0
+
+inspection_gates:
+  - station_id: PT-06
+    name: Paint Inspection Gate
+    detects: [paint_defect]
+    detection_probability: 0.93
+    lag_mean_units: 15.0
+    lag_std_units: 4.0
+    lag_min_units: 4.0
+    lag_max_units: 30.0
+  - station_id: FA-09
+    name: Final Inspection Gate
+    detects: [weld_defect, assembly_defect]
+    detection_probability: 0.9
+    lag_mean_units: 32.0
+    lag_std_units: 6.0
+    lag_min_units: 15.0
+    lag_max_units: 55.0

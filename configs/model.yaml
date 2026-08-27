@@ -1,0 +1,95 @@
+# Simulation & fault-injection parameters for the TwinLine data generator.
+# Detection-gate lag/miss-rate params live in plant_line_a.yaml (they're gate properties).
+seed: 42
+simulation_days: 2
+
+# Background per-station-visit defect chance, applied even where no fault source targets.
+base_defect_rate: 0.0002
+
+sensor_noise:
+  rich_std_frac: 0.02
+  partial_std_frac: 0.06
+
+# Baseline behavior per named sensor channel. defect_shift_frac is the fractional
+# mean shift applied to a reading when the station-visit it belongs to produced
+# a ground-truth defect (negative = reading drops when defective).
+sensor_specs:
+  weld_current_a: {nominal: 850.0, unit: A, defect_shift_frac: 0.08}
+  weld_voltage_v: {nominal: 24.0, unit: V, defect_shift_frac: 0.06}
+  dimensional_variance_mm: {nominal: 0.15, unit: mm, defect_shift_frac: 0.5}
+  laser_power_w: {nominal: 1200.0, unit: W, defect_shift_frac: 0.05}
+  seam_gap_mm: {nominal: 0.4, unit: mm, defect_shift_frac: 0.4}
+  door_gap_mm: {nominal: 4.0, unit: mm, defect_shift_frac: 0.3}
+  bead_width_mm: {nominal: 6.0, unit: mm, defect_shift_frac: 0.2}
+  torque_nm: {nominal: 45.0, unit: Nm, defect_shift_frac: 0.1}
+  bath_conductivity_ms_cm: {nominal: 1.6, unit: mS/cm, defect_shift_frac: 0.1}
+  film_thickness_um: {nominal: 25.0, unit: um, defect_shift_frac: 0.15}
+  spray_pressure_bar: {nominal: 2.2, unit: bar, defect_shift_frac: 0.1}
+  gloss_units: {nominal: 85.0, unit: GU, defect_shift_frac: -0.1}
+  defect_count_visual: {nominal: 0.2, unit: count, defect_shift_frac: 3.0}
+  harness_continuity_ohm: {nominal: 0.05, unit: ohm, defect_shift_frac: 2.0}
+  connector_insertion_force_n: {nominal: 60.0, unit: N, defect_shift_frac: 0.25}
+  door_trim_gap_mm: {nominal: 2.0, unit: mm, defect_shift_frac: 0.3}
+  seat_bolt_torque_nm: {nominal: 35.0, unit: Nm, defect_shift_frac: 0.2}
+  functional_test_score: {nominal: 98.0, unit: score, defect_shift_frac: -0.15}
+
+# Synthetic daily ambient humidity cycle feeding the `ambient` fault sources.
+ambient_humidity:
+  mean_pct: 55.0
+  amplitude_pct: 12.0
+  noise_std_pct: 3.0
+  period_hours: 24.0
+
+fault_sources:
+  - id: tool_wear_bc06
+    kind: tool_wear
+    station_ids: [BC-06]
+    defect_type: weld_defect
+    onset_hour: 8.0
+    ramp_per_hour: 0.0015
+    max_added_rate: 0.013
+
+  - id: tool_wear_fa05
+    kind: tool_wear
+    station_ids: [FA-05]
+    defect_type: assembly_defect
+    onset_hour: 14.0
+    ramp_per_hour: 0.0012
+    max_added_rate: 0.01
+
+  - id: supplier_batch_bc02
+    kind: supplier_batch
+    station_ids: [BC-02]
+    defect_type: weld_defect
+    batch_size_units: 100
+    bad_batch_probability: 0.1
+    bad_batch_added_rate: 0.02
+
+  - id: supplier_batch_bc04
+    kind: supplier_batch
+    station_ids: [BC-04]
+    defect_type: weld_defect
+    batch_size_units: 150
+    bad_batch_probability: 0.08
+    bad_batch_added_rate: 0.017
+
+  - id: operator_variation_fa
+    kind: operator_variation
+    station_ids: [FA-05, FA-06, FA-08]
+    defect_type: assembly_defect
+    shift_multipliers: {SHIFT_1: 1.0, SHIFT_2: 1.3}
+    added_rate: 0.004
+
+  - id: operator_variation_pt05
+    kind: operator_variation
+    station_ids: [PT-05]
+    defect_type: paint_defect
+    shift_multipliers: {SHIFT_1: 1.0, SHIFT_2: 1.3}
+    added_rate: 0.0055
+
+  - id: ambient_paint
+    kind: ambient
+    station_ids: [PT-01, PT-02, PT-03, PT-04]
+    defect_type: paint_defect
+    humidity_threshold_pct: 68.0
+    added_rate_above_threshold: 0.007

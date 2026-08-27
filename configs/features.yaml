@@ -1,0 +1,11 @@
+# Feature-engineering window & process-state thresholds for features/store.py.
+station_window:
+  bucket_minutes: 60.0
+  window_minutes: 120.0
+  ewma_alpha: 0.3
+  rolling_slope_lookback_buckets: 3
+
+process_state:
+  blocked_cycle_time_frac: 1.15
+  starved_cycle_time_frac: 0.85
+  micro_stoppage_frac: 1.5

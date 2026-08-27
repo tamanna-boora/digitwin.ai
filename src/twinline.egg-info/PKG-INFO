@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: twinline
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: streamlit
+Requires-Dist: plotly
+Requires-Dist: scikit-learn
+Requires-Dist: pandas
+Requires-Dist: pydantic>=2
+Requires-Dist: PyYAML
+Requires-Dist: networkx

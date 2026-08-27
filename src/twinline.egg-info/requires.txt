@@ -1,0 +1,7 @@
+streamlit
+plotly
+scikit-learn
+pandas
+pydantic>=2
+PyYAML
+networkx
