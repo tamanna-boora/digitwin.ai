@@ -5,11 +5,13 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel
 
-from twinline.schemas import FeaturesConfig, ModelConfig, PlantLineConfig
+from twinline.schemas import DetectConfig, FeaturesConfig, ModelConfig, PlantLineConfig, SoftSensorsConfig
 
 DEFAULT_PLANT_CONFIG_PATH = Path("configs/plant_line_a.yaml")
 DEFAULT_MODEL_CONFIG_PATH = Path("configs/model.yaml")
 DEFAULT_FEATURES_CONFIG_PATH = Path("configs/features.yaml")
+DEFAULT_SOFT_SENSORS_CONFIG_PATH = Path("configs/soft_sensors.yaml")
+DEFAULT_DETECT_CONFIG_PATH = Path("configs/detect.yaml")
 
 
 class AppConfig(BaseModel):
@@ -32,6 +34,41 @@ def load_model_config(path: Path = DEFAULT_MODEL_CONFIG_PATH) -> ModelConfig:
 
 def load_features_config(path: Path = DEFAULT_FEATURES_CONFIG_PATH) -> FeaturesConfig:
     return FeaturesConfig.model_validate(_read_yaml(path))
+
+
+def load_detect_config(path: Path = DEFAULT_DETECT_CONFIG_PATH) -> DetectConfig:
+    return DetectConfig.model_validate(_read_yaml(path))
+
+
+def load_soft_sensors_config(
+    path: Path = DEFAULT_SOFT_SENSORS_CONFIG_PATH, plant: PlantLineConfig | None = None
+) -> SoftSensorsConfig:
+    cfg = SoftSensorsConfig.model_validate(_read_yaml(path))
+    if plant is not None:
+        _cross_validate_soft_sensors(cfg, plant)
+    return cfg
+
+
+def _cross_validate_soft_sensors(cfg: SoftSensorsConfig, plant: PlantLineConfig) -> None:
+    station_ids = {s.id for s in plant.stations}
+    for archetype in cfg.archetypes:
+        for station_id in [*archetype.rich_members, *archetype.blind_members]:
+            if station_id not in station_ids:
+                raise ValueError(f"archetype {archetype.id} references unknown station {station_id}")
+        for station_id in archetype.rich_members:
+            station = plant.station_by_id(station_id)
+            if archetype.target_sensor not in station.sensors:
+                raise ValueError(
+                    f"archetype {archetype.id}: rich member {station_id} does not measure "
+                    f"target sensor {archetype.target_sensor}"
+                )
+        for station_id in archetype.blind_members:
+            station = plant.station_by_id(station_id)
+            if archetype.target_sensor in station.sensors:
+                raise ValueError(
+                    f"archetype {archetype.id}: blind member {station_id} already measures "
+                    f"{archetype.target_sensor} directly — it isn't blind for this sensor"
+                )
 
 
 def load_app_config(

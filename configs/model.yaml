@@ -6,6 +6,9 @@ simulation_days: 2
 # Background per-station-visit defect chance, applied even where no fault source targets.
 base_defect_rate: 0.0002
 
+# Soft sensors abstain (return None) rather than guess below this confidence.
+soft_sensor_confidence_floor: 0.35
+
 sensor_noise:
   rich_std_frac: 0.02
   partial_std_frac: 0.06

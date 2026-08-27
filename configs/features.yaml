@@ -1,7 +1,7 @@
 # Feature-engineering window & process-state thresholds for features/store.py.
 station_window:
-  bucket_minutes: 60.0
-  window_minutes: 120.0
+  bucket_minutes: 20.0
+  window_minutes: 40.0
   ewma_alpha: 0.3
   rolling_slope_lookback_buckets: 3
 

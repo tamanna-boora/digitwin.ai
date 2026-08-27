@@ -1,3 +1,4 @@
+from twinline.schemas.detect import AnomalyDetectConfig, AnomalySignal, DetectConfig, SPCConfig, SPCSignal, Severity
 from twinline.schemas.enums import AreaCode, DefectType, FaultKind, InstrumentationTier, ShiftId
 from twinline.schemas.features import FeaturesConfig, ProcessStateConfig, StationWindowConfig
 from twinline.schemas.model import (
@@ -20,6 +21,12 @@ from twinline.schemas.records import (
     Reading,
     SimulationOutput,
     UnitRecord,
+)
+from twinline.schemas.soft_sensors import (
+    ArchetypeConfig,
+    SoftSensorConfidenceConfig,
+    SoftSensorEstimate,
+    SoftSensorsConfig,
 )
 
 __all__ = [
@@ -46,4 +53,14 @@ __all__ = [
     "Reading",
     "SimulationOutput",
     "UnitRecord",
+    "ArchetypeConfig",
+    "SoftSensorConfidenceConfig",
+    "SoftSensorEstimate",
+    "SoftSensorsConfig",
+    "AnomalyDetectConfig",
+    "AnomalySignal",
+    "DetectConfig",
+    "SPCConfig",
+    "SPCSignal",
+    "Severity",
 ]

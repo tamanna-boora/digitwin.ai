@@ -1,0 +1,41 @@
+# Soft-sensor archetypes: which partial/manual stations transfer a target
+# sensor's condition from which rich "donor" stations of the same process family.
+# rich_members supply training labels (they truly measure target_sensor);
+# blind_members are the partial/manual stations that get an estimate instead.
+archetypes:
+  - id: BODY_FIT
+    target_sensor: dimensional_variance_mm
+    rich_members: [BC-03, BC-07, BC-09]
+    blind_members: [BC-05, BC-08, FA-08]
+
+  - id: PAINT_FINISH
+    target_sensor: gloss_units
+    rich_members: [PT-04, PT-06]
+    blind_members: [PT-03, PT-05]
+
+  - id: FASTENING
+    target_sensor: torque_nm
+    rich_members: [BC-09]
+    blind_members: [FA-03, FA-04, FA-05, FA-06]
+
+  - id: CONNECT
+    target_sensor: connector_insertion_force_n
+    rich_members: [FA-02]
+    blind_members: [FA-07]
+
+# Confidence scoring — every factor is a 0..1 score, combined multiplicatively
+# so any single weak factor honestly drags the whole estimate down.
+confidence:
+  # interval width, as a fraction of the target sensor's nominal value, above
+  # which the estimate is worthless (score -> 0)
+  interval_width_frac_reference: 0.6
+  # station-sequence distance to the nearest rich donor at which distance
+  # alone would zero out confidence — anchored to the line's full span (24
+  # stations) rather than a tight local neighborhood, since several archetypes
+  # only have one rich donor and it's legitimately far away
+  donor_distance_reference: 24.0
+  # variant representation in the training bucket below which confidence
+  # starts degrading (this unit's variant is under-represented)
+  variant_frac_reference: 0.25
+  # number of non-missing donor bucket-readings needed for full support score
+  donor_support_reference: 2.0

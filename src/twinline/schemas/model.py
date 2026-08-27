@@ -81,6 +81,7 @@ class ModelConfig(BaseModel):
     seed: int
     simulation_days: int = Field(gt=0)
     base_defect_rate: float = Field(ge=0.0, le=1.0)
+    soft_sensor_confidence_floor: float = Field(ge=0.0, le=1.0)
     sensor_noise: SensorNoiseConfig
     ambient_humidity: AmbientHumidityConfig
     sensor_specs: dict[str, SensorSpecConfig]

@@ -1,0 +1,21 @@
+# SPC and anomaly-detection thresholds for detect/spc.py and detect/anomaly.py.
+spc:
+  ewma_control_limit_l: 3.0
+  cusum_k_sigma: 0.5
+  cusum_h_sigma: 4.0
+  rule2_window: 3
+  rule2_hits: 2
+  rule2_sigma: 2.0
+  rule3_window: 5
+  rule3_hits: 4
+  rule3_sigma: 1.0
+  rule4_run_length: 8
+
+anomaly:
+  isolation_forest_contamination: 0.08
+  modified_z_threshold: 3.5
+  weight_isolation_forest: 0.5
+  weight_modified_z: 0.5
+  severity_watch_threshold: 0.4
+  severity_warn_threshold: 0.6
+  severity_critical_threshold: 0.8
