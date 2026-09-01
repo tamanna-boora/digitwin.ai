@@ -96,3 +96,73 @@ fault_sources:
     defect_type: paint_defect
     humidity_threshold_pct: 68.0
     added_rate_above_threshold: 0.007
+
+# predict/ — defect-risk model, calibration/abstention, alarm budget, station hazard.
+predict:
+  defect_risk:
+    # Chronological split: earliest 60% trains, next 15% calibrates isotonic
+    # regression, latest ~25% is the final held-out test — never random,
+    # because tool wear drifts and a random split would leak the future.
+    train_fraction: 0.6
+    calibration_fraction: 0.15
+    hist_gbc:
+      max_iter: 150
+      max_depth: 4
+      learning_rate: 0.1
+      min_samples_leaf: 20
+      l2_regularization: 1.0
+
+  calibration:
+    # Calibrated probabilities inside this band are too close to a coin flip
+    # to act on — abstain rather than force a number.
+    uncertainty_band_lo: 0.35
+    uncertainty_band_hi: 0.55
+    # Abstain if more than this fraction of a unit's station visits had NO usable
+    # evidence at all (soft estimate below its own confidence floor, or a manual
+    # station with no soft coverage) — every unit visits the same 10 non-rich
+    # stations, so the typical value is ~0.167 (4/24 hard-blind stations); this
+    # is set to only trigger when additional soft estimates also abstained.
+    soft_fraction_abstain_threshold: 0.25
+
+  alarm_budget:
+    max_alerts_per_shift: 5
+    rework_cost_currency: 250.0
+
+  station_hazard:
+    lookback_seconds: 3600.0
+    half_life_seconds: 1800.0
+    severity_weight_watch: 0.3
+    severity_weight_warn: 0.6
+    severity_weight_critical: 1.0
+
+# rootcause/ — origin tracing and containment.
+rootcause:
+  visit_window_tolerance_seconds: 600.0
+  manual_only_window_seconds: 1800.0
+  max_window_span_seconds: 3600.0
+  area_affinity_bonus: 1.0
+  co_occurrence_weight: 0.3
+  manual_check_fail_bonus: 2.0
+  confidence_reference_score: 2.0
+  max_origin_candidates: 5
+  max_evidence_per_candidate: 5
+  min_cohort_size: 10
+  cohort_ci_z_score: 1.96
+
+# actions/ — recommendation levers.
+actions:
+  tool_wear_change_window_hours: 2.0
+  monitoring_units_window: 20
+
+# trust/ — prediction ledger and backtest cost model.
+trust:
+  investigation_cost_currency: 40.0
+  # Past PT-05 (seq 14), the first defect-capable station with real soft-sensor
+  # coverage — a checkpoint before that would give the with/without-soft-sensors
+  # variants nothing to differentiate, since no defect-causing blind station has
+  # been reached yet. Still 8 stations (a third of the line) before the final gate.
+  backtest_checkpoint_sequence: 16
+  visit_deviation_reference: 0.1
+  visit_manual_fail_probability: 0.9
+  visit_manual_pass_probability: 0.02
+  visit_alert_probability_threshold: 0.5

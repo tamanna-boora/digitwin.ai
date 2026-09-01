@@ -6,6 +6,10 @@ from pydantic import BaseModel, Field, model_validator
 
 from twinline.schemas.enums import DefectType, FaultKind, ShiftId
 from twinline.schemas.plant import STATION_ID_PATTERN
+from twinline.schemas.actions import ActionsConfig
+from twinline.schemas.predict import PredictConfig
+from twinline.schemas.rootcause import RootCauseConfig
+from twinline.schemas.trust import TrustConfig
 
 
 class SensorNoiseConfig(BaseModel):
@@ -86,3 +90,7 @@ class ModelConfig(BaseModel):
     ambient_humidity: AmbientHumidityConfig
     sensor_specs: dict[str, SensorSpecConfig]
     fault_sources: list[FaultSourceConfig]
+    predict: PredictConfig
+    rootcause: RootCauseConfig
+    actions: ActionsConfig
+    trust: TrustConfig
