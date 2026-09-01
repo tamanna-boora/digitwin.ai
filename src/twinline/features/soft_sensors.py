@@ -70,7 +70,7 @@ def estimate(
     )
 
 
-def _score_confidence(
+def confidence_components(
     store: SoftSensorStore,
     archetype: ArchetypeConfig,
     station_id: str,
@@ -79,7 +79,10 @@ def _score_confidence(
     hi: float,
     contributing: list[str],
     variant_id: str | None,
-) -> float:
+) -> dict[str, float]:
+    """The four named sub-scores behind estimate()'s confidence, exposed so a
+    caller can reason about (or interactively perturb, e.g. a 'what if this
+    station had a rich neighbour' retrofit scenario) each factor individually."""
     cfg = store.ss_cfg.confidence
 
     nominal = store.model_cfg.sensor_specs[archetype.target_sensor].nominal
@@ -101,7 +104,26 @@ def _score_confidence(
 
     support_score = _clip01(float(row["donor_support_count"]) / cfg.donor_support_reference)
 
-    return interval_score * distance_score * variant_score * support_score
+    return {
+        "interval_score": interval_score,
+        "distance_score": distance_score,
+        "variant_score": variant_score,
+        "support_score": support_score,
+        "confidence": interval_score * distance_score * variant_score * support_score,
+    }
+
+
+def _score_confidence(
+    store: SoftSensorStore,
+    archetype: ArchetypeConfig,
+    station_id: str,
+    row: pd.Series,
+    lo: float,
+    hi: float,
+    contributing: list[str],
+    variant_id: str | None,
+) -> float:
+    return confidence_components(store, archetype, station_id, row, lo, hi, contributing, variant_id)["confidence"]
 
 
 def _clip01(x: float) -> float:

@@ -37,7 +37,7 @@ from twinline.schemas import (
 
 # Which process area naturally produces which defect mode — plant-level domain
 # knowledge (mirrors sim/line.py's fallback typing), not this specific defect's cause.
-_AREA_OWNS_DEFECT_TYPE = {
+AREA_OWNS_DEFECT_TYPE = {
     "BODY": DefectType.WELD_DEFECT,
     "PAINT": DefectType.PAINT_DEFECT,
     "FINAL_ASSEMBLY": DefectType.ASSEMBLY_DEFECT,
@@ -104,7 +104,7 @@ def trace_defect(
             if window_start_s <= _visit_time_s(float(other_start), station, plant.takt_seconds) <= window_end_s
         )
 
-        area_bonus = cfg.area_affinity_bonus if _AREA_OWNS_DEFECT_TYPE.get(station.area.value) == defect_type else 0.0
+        area_bonus = cfg.area_affinity_bonus if AREA_OWNS_DEFECT_TYPE.get(station.area.value) == defect_type else 0.0
         score = (
             signal_severity_score(spc_matches, anomaly_matches, bool(manual_evidence), cfg.manual_check_fail_bonus)
             + area_bonus

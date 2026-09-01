@@ -34,6 +34,17 @@ CREATE TABLE IF NOT EXISTS predictions (
 );
 """
 
+_CREATE_OPERATOR_ACTIONS_SQL = """
+CREATE TABLE IF NOT EXISTS operator_actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_id TEXT NOT NULL,
+    station_id TEXT,
+    action TEXT NOT NULL,
+    reason TEXT,
+    logged_at_s REAL NOT NULL
+);
+"""
+
 
 @dataclass(frozen=True)
 class PredictionLogEntry:
@@ -50,10 +61,33 @@ class PredictionLogEntry:
 
 
 def open_ledger(db_path: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.execute(_CREATE_TABLE_SQL)
+    conn.execute(_CREATE_OPERATOR_ACTIONS_SQL)
     conn.commit()
     return conn
+
+
+@dataclass(frozen=True)
+class OperatorAction:
+    alert_id: str
+    station_id: str | None
+    action: str
+    reason: str | None
+    logged_at_s: float
+
+
+def log_operator_action(conn: sqlite3.Connection, entry: OperatorAction) -> int:
+    cursor = conn.execute(
+        "INSERT INTO operator_actions (alert_id, station_id, action, reason, logged_at_s) VALUES (?, ?, ?, ?, ?)",
+        (entry.alert_id, entry.station_id, entry.action, entry.reason, entry.logged_at_s),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def list_operator_actions(conn: sqlite3.Connection) -> pd.DataFrame:
+    return pd.read_sql_query("SELECT * FROM operator_actions ORDER BY logged_at_s DESC", conn)
 
 
 def log_prediction(conn: sqlite3.Connection, entry: PredictionLogEntry, commit: bool = True) -> int:
