@@ -69,19 +69,36 @@ def two_proportion_comparison(
     return ProportionComparison(label_a, label_b, rate_a, rate_b, n_a, n_b, diff, diff - margin, diff + margin, True)
 
 
-def constraint_history(wide: pd.DataFrame, station_ids: list[str], takt_seconds: float, up_to_s: float) -> pd.DataFrame:
+def constraint_history(
+    wide: pd.DataFrame,
+    station_ids: list[str],
+    takt_seconds: float,
+    up_to_s: float,
+    overrides: dict[str, pd.Series] | None = None,
+) -> pd.DataFrame:
     """Per historical bucket, which station had the highest buffer_utilisation
     (the constraint), and how much throughput (in takt-equivalent units) that
-    excess cost — bucket_end_s <= up_to_s only, respecting the replay clock."""
+    excess cost — bucket_end_s <= up_to_s only, respecting the replay clock.
+
+    overrides lets a caller substitute one station's buffer_utilisation series
+    (e.g. Scenario Lab's what-if-adjusted series) so the constraint is
+    recomputed exactly against the other stations' real values, rather than
+    approximated by a separate score-nudge formula."""
+    overrides = overrides or {}
     rows = []
     for station_id in station_ids:
-        if station_id not in wide.index.get_level_values("station_id"):
-            continue
-        df = wide.loc[station_id]
-        df = df[df.index <= up_to_s]
-        if "buffer_utilisation" not in df.columns:
-            continue
-        for bucket_end_s, value in df["buffer_utilisation"].items():
+        if station_id in overrides:
+            series = overrides[station_id]
+            series = series[series.index <= up_to_s]
+        else:
+            if station_id not in wide.index.get_level_values("station_id"):
+                continue
+            df = wide.loc[station_id]
+            df = df[df.index <= up_to_s]
+            if "buffer_utilisation" not in df.columns:
+                continue
+            series = df["buffer_utilisation"]
+        for bucket_end_s, value in series.items():
             if pd.notna(value):
                 rows.append({"bucket_end_s": bucket_end_s, "station_id": station_id, "buffer_utilisation": float(value)})
 

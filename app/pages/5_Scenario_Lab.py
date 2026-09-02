@@ -94,10 +94,11 @@ throughput_after = baseline_throughput / max(speed_multiplier, 1e-6) if buffer_s
 variant_rate_after = reweighted_defect_rate(line.units, line.defects, mix_pct)
 rate_after_batch = bad_batch_projected_rate(variant_rate_after, batch_added_rate, batch_size, len(line.units))
 
-adjusted_constraint_scores = dict(zip(baseline_history["station_id"], baseline_history["times_constraint"])) if not baseline_history.empty else {}
-if buffer_station in adjusted_constraint_scores and adjusted_mean_buffer < baseline_mean_buffer:
-    adjusted_constraint_scores[buffer_station] = max(adjusted_constraint_scores[buffer_station] - buffer_slots * 2, 0)
-constraint_after = max(adjusted_constraint_scores, key=adjusted_constraint_scores.get) if adjusted_constraint_scores else baseline_constraint
+adjusted_history = constraint_history(
+    wide, station_ids, cfg.plant.takt_seconds, horizon_s,
+    overrides={buffer_station: adjusted_series} if not adjusted_series.empty else None,
+)
+constraint_after = adjusted_history.iloc[0]["station_id"] if not adjusted_history.empty else baseline_constraint
 
 before_after_cols = st.columns(3)
 with before_after_cols[0]:
