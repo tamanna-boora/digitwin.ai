@@ -2,9 +2,15 @@
 -> infer_suspected_driver -> matched_cohort_comparison -> build_recommendation
 into ranked, alarm-budgeted alerts. Used by both the Floor Supervisor page
 (live feed) and the Trust & Validation page (acknowledgement history).
+
+Multiple detected defects tracing back to the same (station, driver) within a
+shift are the same underlying issue seen more than once, not distinct alerts
+worth separate alarm-budget slots -- they're collapsed to the
+highest-confidence occurrence before budgeting, with occurrence_count
+recording how many incidents fed into it.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
@@ -33,6 +39,7 @@ class AlertDetail:
     driver: str
     risk: UnitsAtRisk
     recommendation: Recommendation
+    occurrence_count: int = 1
 
 
 def build_open_alerts(
@@ -82,19 +89,44 @@ def build_open_alerts(
         alert_id = f"{row.unit_id}::{top.station_id}"
         candidate = AlertCandidate(
             id=alert_id, station_id=top.station_id, shift_id=unit_shift, probability=probability,
-            units_at_risk=max(len(risk.unit_ids), 1), rework_cost=rework_cost,
+            units_at_risk=len(risk.unit_ids), rework_cost=rework_cost,
             reason=f"{driver} suspected at {top.station_id}",
         )
         details_by_id[alert_id] = AlertDetail(
             candidate=candidate, trace=trace, driver=driver, risk=risk, recommendation=recommendation
         )
 
+    deduped = _dedupe_by_station_and_driver(list(details_by_id.values()))
+    deduped_by_id = {d.candidate.id: d for d in deduped}
+
     selected_candidates, digest_candidates = select_alerts(
-        [d.candidate for d in details_by_id.values()], cfg.model.predict.alarm_budget
+        [d.candidate for d in deduped], cfg.model.predict.alarm_budget
     )
-    selected = [details_by_id[c.id] for c in selected_candidates]
-    digest = [details_by_id[c.id] for c in digest_candidates]
+    selected = [deduped_by_id[c.id] for c in selected_candidates]
+    digest = [deduped_by_id[c.id] for c in digest_candidates]
     return selected, digest
+
+
+def _dedupe_by_station_and_driver(details: list[AlertDetail]) -> list[AlertDetail]:
+    """Collapse repeat incidents at the same (station, driver, shift) to one
+    representative, recording how many incidents fed into it. Scoped per
+    shift because the alarm budget itself is per shift -- collapsing across
+    shifts would let one shift's occurrence count eat another's slot.
+
+    The representative is picked by (has units still at risk, confidence),
+    in that order -- an occurrence whose containment window is still open is
+    strictly more actionable than one that's already resolved, regardless of
+    which one the root-cause trace happens to be more confident about."""
+    groups: dict[tuple[str, str, str], list[AlertDetail]] = {}
+    for detail in details:
+        key = (detail.candidate.station_id, detail.driver, detail.candidate.shift_id)
+        groups.setdefault(key, []).append(detail)
+
+    result = []
+    for group in groups.values():
+        best = max(group, key=lambda d: (len(d.risk.unit_ids) > 0, d.recommendation.confidence))
+        result.append(replace(best, occurrence_count=len(group)))
+    return result
 
 
 def current_station_id(cfg: AppConfig, unit_id: str, units_by_id: pd.DataFrame, now_s: float) -> str:

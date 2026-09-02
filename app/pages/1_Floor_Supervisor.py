@@ -71,7 +71,12 @@ selected_alerts, digest_alerts = state.get_open_alerts(now_bucket_s)
 actions_df = list_operator_actions(ledger_conn)
 dismissed_ids = set(actions_df.loc[actions_df["action"] == "dismiss", "alert_id"]) if not actions_df.empty else set()
 acknowledged_ids = set(actions_df.loc[actions_df["action"] == "acknowledge", "alert_id"]) if not actions_df.empty else set()
-open_alerts = [a for a in selected_alerts if a.candidate.id not in dismissed_ids]
+# Scoped to the current shift: the alarm budget itself is per shift, so this
+# is the number that should read consistently against "N alerts / shift".
+open_alerts = [
+    a for a in selected_alerts if a.candidate.id not in dismissed_ids and a.candidate.shift_id == current_shift_id
+]
+digest_this_shift = [a for a in digest_alerts if a.candidate.shift_id == current_shift_id]
 
 at_risk_union: set[str] = set()
 for alert in open_alerts:
@@ -96,7 +101,8 @@ with kpi_cols[2]:
     st.markdown(
         f'<div class="tw-kpi-tile"><div class="tw-kpi-label">Open alerts</div>'
         f'<div class="tw-kpi-value">{len(open_alerts)}</div>'
-        f'<div class="tw-kpi-sub">{len(digest_alerts)} more in the digest</div></div>',
+        f'<div class="tw-kpi-sub">budget {cfg.model.predict.alarm_budget.max_alerts_per_shift}/shift '
+        f'&middot; {len(digest_this_shift)} more in the digest ({current_shift_id})</div></div>',
         unsafe_allow_html=True,
     )
 with kpi_cols[3]:
@@ -141,11 +147,17 @@ with col_alerts:
             f'{provenance_badge_html(e.provenance)} <span class="tw-caption">{e.detail}</span><br>'
             for e in top.evidence
         )
+        occurrence_badge = (
+            f' &nbsp;·&nbsp; <span class="tw-pill" style="background:{status_color("watch")}22;'
+            f'color:{status_color("watch")};">&times;{alert.occurrence_count} occurrences</span>'
+            if alert.occurrence_count > 1 else ""
+        )
         st.markdown(
             f"""
             <div class="tw-card" style="border-left:3px solid {status_color('warn')};">
             <b>{alert.driver.replace('_', ' ').title()}</b> suspected at <b>{top.station_id}</b>
             &nbsp;·&nbsp; confidence {rec.confidence:.0%} &nbsp;·&nbsp; {len(alert.risk.unit_ids)} units at risk
+            {occurrence_badge}
             {' &nbsp;·&nbsp; <span class="tw-pill" style="background:' + status_color('ok') + '22;color:' + status_color('ok') + ';">ACKNOWLEDGED</span>' if acknowledged else ''}
             <br><br>
             <span class="tw-caption">WHY</span><br>{evidence_html}
@@ -157,7 +169,10 @@ with col_alerts:
             """,
             unsafe_allow_html=True,
         )
-        btn_cols = st.columns([1, 2, 3])
+        # [2, 3, 3] rather than [1, 2, 3]: at [1, 2, 3] the "Acknowledge" column
+        # was too narrow for its own label at this card's typical width and the
+        # button text wrapped to two lines.
+        btn_cols = st.columns([2, 3, 3])
         with btn_cols[0]:
             if not acknowledged and st.button("Acknowledge", key=f"ack_{alert.candidate.id}"):
                 log_operator_action(
@@ -179,23 +194,22 @@ with col_containment:
     st.markdown('<div class="tw-section-title">Containment — units at risk</div>', unsafe_allow_html=True)
     if not open_alerts:
         st.info("No active trace.")
+    elif not at_risk_union:
+        st.caption("No units currently in flight from any open alert's window.")
     else:
         top_alert = max(open_alerts, key=lambda a: a.candidate.probability * a.candidate.units_at_risk)
         st.markdown(
             f'<div class="tw-card">Active trace: <b>{top_alert.driver.replace("_"," ").title()}</b> at '
             f'<b>{top_alert.trace.candidates[0].station_id}</b> — '
-            f'{len(top_alert.risk.unit_ids)} unit(s) passed through during the anomalous window and '
+            f'{len(at_risk_union)} unit(s) across all open alerts passed through during an anomalous window and '
             f"haven't been inspected yet.</div>",
             unsafe_allow_html=True,
         )
-        if top_alert.risk.unit_ids:
-            rows = [
-                {"unit_id": uid, "currently_at": current_station_id(cfg, uid, units_by_id, now_s)}
-                for uid in top_alert.risk.unit_ids
-            ]
-            st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True, height=280)
-        else:
-            st.caption("No units currently in flight from this window.")
+        rows = [
+            {"unit_id": uid, "currently_at": current_station_id(cfg, uid, units_by_id, now_s)}
+            for uid in sorted(at_risk_union)
+        ]
+        st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True, height=280)
 
 st.markdown("---")
 

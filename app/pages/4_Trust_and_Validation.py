@@ -111,7 +111,7 @@ else:
     fig.add_trace(go.Bar(x=all_shifts, y=[by_shift_digest.get(s, 0) for s in all_shifts], name="Digest (over budget)", marker_color=CATEGORICAL[6]))
     fig.update_layout(height=280, barmode="stack", yaxis_title="Alert candidates",
                        title=f"Budget: {cfg.model.predict.alarm_budget.max_alerts_per_shift} alerts / shift")
-    st.plotly_chart(fig, width='stretch', theme=None)
+    st.plotly_chart(fig, width='stretch', theme=None, config={"displayModeBar": False})
     st.caption("The alarm budget is enforced by construction — alerted counts never exceed the budget; the digest "
                "bar shows how many additional candidates existed and were deliberately not surfaced.")
 

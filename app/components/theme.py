@@ -164,6 +164,10 @@ _CARD_CSS = f"""
 .tw-nav-card h4 {{
     color: var(--tw-ink-primary);
     margin: 0 0 6px 0;
+    /* Break at spaces only -- a narrow nav column otherwise mid-word-wraps
+    a title like "Floor Supervisor" into "Superviso" / "r". */
+    word-break: keep-all;
+    overflow-wrap: normal;
 }}
 
 .tw-nav-card p {{

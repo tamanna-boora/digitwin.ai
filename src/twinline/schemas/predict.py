@@ -68,6 +68,10 @@ class AlertCandidate(BaseModel):
     station_id: str | None = None
     shift_id: str
     probability: float = Field(ge=0.0, le=1.0)
-    units_at_risk: int = Field(gt=0)
+    # A closed containment window (every unit from it already inspected) is a
+    # real, valid alert state, not an invalid one — gt=0 forced alerts.py to
+    # fabricate a floor of 1 to pass validation, which misrepresented a
+    # resolved alert as still having something to contain.
+    units_at_risk: int = Field(ge=0)
     rework_cost: float = Field(gt=0.0)
     reason: str

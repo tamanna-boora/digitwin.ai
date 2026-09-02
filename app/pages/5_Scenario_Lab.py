@@ -176,7 +176,7 @@ else:
         fig.add_hline(y=1.0, line_dash="dash", line_color=status_color("ok"), annotation_text="retrofit target (1.0)")
         fig.update_layout(height=280, yaxis_title="Score (0-1)", yaxis_range=[0, 1.05],
                            title="Confidence factors today — a retrofit fixes 'distance to donor' directly")
-        st.plotly_chart(fig, width='stretch', theme=None)
+        st.plotly_chart(fig, width='stretch', theme=None, config={"displayModeBar": False})
         st.caption(
             "A real sensor at this station eliminates the need to borrow signal from a distant rich neighbour — "
             "the distance-to-donor factor jumps to 1.0, which is what drives the confidence improvement above. "

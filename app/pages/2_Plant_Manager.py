@@ -67,7 +67,7 @@ for col, (dim, dim_label) in zip(trend_cols, [("variant_id", "Variant"), ("shift
                 fig.add_trace(go.Scatter(x=by_hour.index, y=by_hour.values, mode="lines", name=area,
                                           line=dict(color=CATEGORICAL[i % len(CATEGORICAL)], width=2)))
         fig.update_layout(title=f"By {dim_label}", height=280, yaxis_title="Defect rate (%)", xaxis_title="Hour")
-        st.plotly_chart(fig, width='stretch', theme=None)
+        st.plotly_chart(fig, width='stretch', theme=None, config={"displayModeBar": False})
 
 st.markdown("---")
 
@@ -129,11 +129,11 @@ else:
     with hist_cols[0]:
         fig = go.Figure(go.Bar(x=history["station_id"], y=history["times_constraint"], marker_color=CATEGORICAL[0]))
         fig.update_layout(height=300, title="Times each station was the constraint", yaxis_title="Bucket count")
-        st.plotly_chart(fig, width='stretch', theme=None)
+        st.plotly_chart(fig, width='stretch', theme=None, config={"displayModeBar": False})
     with hist_cols[1]:
         fig = go.Figure(go.Bar(x=history["station_id"], y=history["units_lost"], marker_color=CATEGORICAL[1]))
         fig.update_layout(height=300, title="Throughput lost (takt-equivalent units)", yaxis_title="Units lost")
-        st.plotly_chart(fig, width='stretch', theme=None)
+        st.plotly_chart(fig, width='stretch', theme=None, config={"displayModeBar": False})
 
 st.markdown("---")
 
@@ -187,9 +187,14 @@ batch_size = batch_sources[0].batch_size_units if batch_sources else 100
 units_so_far["batch_block"] = units_so_far["sequence_number"] // batch_size
 by_batch = units_so_far.groupby("batch_block")["is_defective"].mean() * 100.0
 fig = go.Figure(go.Bar(x=[f"block {int(b)}" for b in by_batch.index], y=by_batch.values, marker_color=CATEGORICAL[5]))
-fig.update_layout(height=260, yaxis_title="Defect rate (%)",
-                   xaxis_title=f"Unit blocks of {batch_size} (the configured supplier lot size)")
-st.plotly_chart(fig, width='stretch', theme=None)
+fig.update_layout(
+    height=320, yaxis_title="Defect rate (%)",
+    # Angled tick labels plus an explicit standoff so the axis title never
+    # sits flush against a long run of "block N" ticks on a short chart.
+    xaxis=dict(title=dict(text=f"Unit blocks of {batch_size} (the configured supplier lot size)", standoff=20), tickangle=-45),
+    margin=dict(b=110),
+)
+st.plotly_chart(fig, width='stretch', theme=None, config={"displayModeBar": False})
 
 st.markdown("---")
 
