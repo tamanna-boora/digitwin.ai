@@ -33,3 +33,7 @@ Every reading, every defect, every unit ID in this repo comes from `sim/`, seede
 ## 8. Zero arrival jitter
 
 Unit start times in the simulator are exactly one takt apart. No jitter, no stochastic gaps between units entering the line. That makes throughput deterministic: 60 units an hour, every hour, by construction, not something we measured. A real line has arrival variability, minor stoppages, and small timing drift between units. We left it out because it would not have changed any of the conclusions this project checks (defect detection, root-cause tracing, containment) and would have invalidated every run we had already validated against a known ground truth. If we added it later, we would add it after the fact and re-run the backtest, not fold it in quietly.
+
+## 9. Soft-sensor degeneracy and rule-firing logic at PT-05
+
+Our soft-sensor estimators occasionally collapse toward the exact nominal value, particularly for the `gloss_units` metric at manual-tier paint stations like PT-05. When this happens (e.g., locking at exactly 84.963), an underlying logic bug in the anomaly detection engine causes directional statistical rules—like "Rule 4: run same side of centerline"—to fire erroneously, even though the value is sitting perfectly on the centerline. Rather than artificially suppressing this UI artifact or overhauling the estimator logic late in development, we left it visible. It stands as a documented limitation of simulating complex soft-sensor evidence across varied instrumentation tiers on a constrained timeline.
