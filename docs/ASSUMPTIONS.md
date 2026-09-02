@@ -29,3 +29,7 @@ This feeds the backtest's net-benefit calculation directly: a true positive is w
 ## 7. No real company data anywhere
 
 Every reading, every defect, every unit ID in this repo comes from `sim/`, seeded with 42. Sensor nominal values (weld current at 850A, film thickness at 25 microns, and so on) are plausible figures for the named process, not values pulled from any supplier datasheet or OEM spec. No proprietary process parameters, no real plant layout, no real defect rates went into this. That's a deliberate boundary, not an oversight: this project was built to be checked against a known, controllable ground truth, and mixing in real numbers from somewhere would have made it impossible to tell whether a result reflected the model or the data source.
+
+## 8. Zero arrival jitter
+
+Unit start times in the simulator are exactly one takt apart. No jitter, no stochastic gaps between units entering the line. That makes throughput deterministic: 60 units an hour, every hour, by construction, not something we measured. A real line has arrival variability, minor stoppages, and small timing drift between units. We left it out because it would not have changed any of the conclusions this project checks (defect detection, root-cause tracing, containment) and would have invalidated every run we had already validated against a known ground truth. If we added it later, we would add it after the fact and re-run the backtest, not fold it in quietly.
