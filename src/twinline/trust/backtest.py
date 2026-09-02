@@ -3,10 +3,22 @@ mid-journey checkpoint (trust.backtest_checkpoint_sequence stations in, not
 the unit's full journey), and score four methods against the same
 chronological test split defect_risk.py already uses:
 
-  rules-only        — worst SPC/anomaly severity seen at any visited station
+  rules-only        — mean SPC/anomaly severity across visited checkpoint
+                       stations, counting only signals whose own aggregation
+                       window actually contains the unit's visit
   ML-only           — HistGBC trained on journey features WITHOUT soft sensors
   hybrid            — average of rules-only and ML-only
   hybrid+soft       — average of rules-only and an HistGBC trained WITH soft sensors
+
+rules-only deliberately does NOT take the worst signal seen at any of the
+checkpoint stations: with ~16 stations and hundreds of signals spread across
+the run, a worst-of aggregation with a generous match tolerance saturates to
+"critical" for nearly every unit (verified: 100% of units at the default
+1200s tolerance), which makes the score uninformative and collapses hybrid
+onto ML-only by construction. Matching on real window containment (each
+SPC/anomaly signal already carries the aggregation window it was computed
+over) and averaging severity across stations instead of taking the max keeps
+the score tied to how much of THIS unit's own path was actually flagged.
 
 Each is scored at the same alarm budget so the table compares apples to
 apples, plus a cost model of rework avoided (true positives) against the
@@ -25,10 +37,9 @@ from twinline.features.store import UnitFeatureFrame
 from twinline.predict.calibration import fit_calibrator, predict_with_abstention
 from twinline.predict.defect_risk import build_labeled_dataset, time_based_split, train_defect_risk_model
 from twinline.predict.journey_features import build_unit_journey_features
-from twinline.schemas import AnomalySignal, ModelConfig, PlantLineConfig, SPCSignal
+from twinline.schemas import AnomalySignal, FeaturesConfig, ModelConfig, PlantLineConfig, SPCSignal
 
 _SEVERITY_SCORE = {"watch": 0.3, "warn": 0.6, "critical": 1.0}
-_SIGNAL_TOLERANCE_S = 1200.0
 
 
 @dataclass(frozen=True)
@@ -45,30 +56,44 @@ class AblationRow:
 
 def _rules_based_scores(
     units: pd.DataFrame, plant: PlantLineConfig, checkpoint_sequence: int,
-    spc_signals: list[SPCSignal], anomaly_signals: list[AnomalySignal],
+    spc_signals: list[SPCSignal], anomaly_signals: list[AnomalySignal], bucket_seconds: float,
 ) -> pd.Series:
-    signals_by_station: dict[str, list[tuple[float, float]]] = {}
+    # Each entry is (window_start_s, window_end_s, severity) — the real
+    # aggregation window the signal was computed over (SPC carries its own;
+    # an anomaly bucket spans bucket_end_s - bucket_seconds to bucket_end_s),
+    # plus a one-takt buffer on each side for the visit-time computation's
+    # own rounding, not an arbitrary extra margin.
+    signals_by_station: dict[str, list[tuple[float, float, float]]] = {}
     for s in spc_signals:
-        signals_by_station.setdefault(s.station_id, []).append((s.window_end_s, _SEVERITY_SCORE[s.severity.value]))
+        signals_by_station.setdefault(s.station_id, []).append(
+            (s.window_start_s, s.window_end_s, _SEVERITY_SCORE[s.severity.value])
+        )
     for a in anomaly_signals:
         signals_by_station.setdefault(a.station_id, []).append(
-            (a.bucket_end_s, _SEVERITY_SCORE[a.severity.value] * a.confidence_weight)
+            (a.bucket_end_s - bucket_seconds, a.bucket_end_s, _SEVERITY_SCORE[a.severity.value] * a.confidence_weight)
         )
 
     stations = [s for s in plant.stations if s.sequence <= checkpoint_sequence]
     takt = plant.takt_seconds
+    if not stations:
+        return pd.Series(np.zeros(len(units)), index=units["unit_id"].to_numpy())
 
-    scores = np.zeros(len(units))
-    for station in stations:
+    # Mean, not max, across visited stations: a unit whose path only brushed
+    # one flagged station should score far below one flagged at several, not
+    # be treated identically to it.
+    contributions = np.zeros((len(units), len(stations)))
+    for j, station in enumerate(stations):
         station_signals = signals_by_station.get(station.id, [])
         if not station_signals:
             continue
         visit_times = units["start_time_s"].to_numpy() + station.sequence * takt
         for i, visit_time in enumerate(visit_times):
             best = max(
-                (sev for t, sev in station_signals if abs(t - visit_time) <= _SIGNAL_TOLERANCE_S), default=0.0
+                (sev for start, end, sev in station_signals if (start - takt) <= visit_time <= (end + takt)),
+                default=0.0,
             )
-            scores[i] = max(scores[i], best)
+            contributions[i, j] = best
+    scores = contributions.mean(axis=1)
     return pd.Series(scores, index=units["unit_id"].to_numpy())
 
 
@@ -84,6 +109,7 @@ def run_backtest(
     soft_store: SoftSensorStore,
     spc_signals: list[SPCSignal],
     anomaly_signals: list[AnomalySignal],
+    features_cfg: FeaturesConfig,
 ) -> list[AblationRow]:
     checkpoint = model_cfg.trust.backtest_checkpoint_sequence
 
@@ -118,7 +144,8 @@ def run_backtest(
         {p.unit_id: (p.calibrated_probability or 0.0) for p in hybrid_soft_preds}
     ).reindex(split_with_soft.test.index).fillna(0.0)
 
-    rules_scores_all = _rules_based_scores(units, plant, checkpoint, spc_signals, anomaly_signals)
+    bucket_seconds = features_cfg.station_window.bucket_minutes * 60.0
+    rules_scores_all = _rules_based_scores(units, plant, checkpoint, spc_signals, anomaly_signals, bucket_seconds)
     rules_scores = rules_scores_all.reindex(split_no_soft.test.index).fillna(0.0)
 
     y_test = split_no_soft.test["y"]

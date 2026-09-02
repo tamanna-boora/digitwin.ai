@@ -191,11 +191,13 @@ def get_traced_drivers(now_bucket_s: float) -> pd.DataFrame:
 @st.cache_data(show_spinner="Replaying the chronological backtest ablation...")
 def get_ablation_table() -> list[AblationRow]:
     cfg = load_config()
+    features_cfg, _, _ = load_side_configs()
     line = load_line_data()
     pipeline = load_pipeline()
     return run_backtest(
         pipeline.unit_features, pipeline.station_features, line.units, line.readings, line.manual_checks,
         line.defects, cfg.plant, cfg.model, pipeline.soft_store, pipeline.spc_signals, pipeline.anomaly_signals,
+        features_cfg,
     )
 
 

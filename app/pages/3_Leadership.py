@@ -26,32 +26,36 @@ cfg = state.load_config()
 line = state.load_line_data()
 pipeline = state.load_pipeline()
 ledger_conn = state.get_ledger_connection()
-ablation = {row.method: row for row in state.get_ablation_table()}
+ablation_rows = state.get_ablation_table()
+ablation = {row.method: row for row in ablation_rows}
+ml_row = ablation.get("ML-only")
 
 st.title("Leadership")
 
 # --- lead with the ablation finding -----------------------------------------
-rules_row = ablation.get("rules-only")
-ml_row = ablation.get("ML-only")
-hybrid_row = ablation.get("hybrid+soft-sensors")
+negative_rows = [r for r in ablation_rows if r.net_benefit < 0]
+positive_rows = [r for r in ablation_rows if r.net_benefit > 0]
 
-if rules_row and ml_row and hybrid_row:
-    negative_methods = [m.method for m in (rules_row, ml_row) if m.net_benefit < 0]
-    if negative_methods and hybrid_row.net_benefit > 0:
-        st.error(
-            f"**At the current alarm budget, {' and '.join(negative_methods)} lose money** "
-            f"(net {rules_row.net_benefit:+.0f} / {ml_row.net_benefit:+.0f} currency in the backtest window) — "
-            f"investigation cost on false alarms outweighs rework avoided. The hybrid model combining rules and "
-            f"ML **is net positive** ({hybrid_row.net_benefit:+.0f} currency). This is why alarm budgeting and "
-            "calibrated abstention matter, not just having a model.",
-            icon="📉",
-        )
+if negative_rows and positive_rows:
+    negative_methods = ", ".join(r.method for r in negative_rows)
+    negative_values = " / ".join(f"{r.net_benefit:+.0f}" for r in negative_rows)
+    positive_methods = " and ".join(r.method for r in positive_rows)
+    positive_values = " / ".join(f"{r.net_benefit:+.0f}" for r in positive_rows)
+    verb = "is" if len(positive_rows) == 1 else "are"
+    st.error(
+        f"**At the current alarm budget, {negative_methods} all lose money** "
+        f"(net {negative_values} currency in the backtest window) — investigation cost on false alarms outweighs "
+        f"rework avoided. Only **{positive_methods}** {verb} net positive ({positive_values} currency). This is why "
+        "alarm budgeting and calibrated abstention matter, not just having a model.",
+        icon="📉",
+    )
 
 st.markdown("---")
 
 # --- business case -----------------------------------------------------------
 st.markdown('<div class="tw-section-title">Business case</div>', unsafe_allow_html=True)
-st.caption("Computed from the hybrid+soft-sensors backtest row. Adjust the assumptions below — the numbers move.")
+st.caption("Computed from the ML-only backtest row — the only net-positive configuration at the current alarm "
+           "budget. Adjust the assumptions below — the numbers move.")
 
 assumption_cols = st.columns(4)
 with assumption_cols[0]:
@@ -67,11 +71,11 @@ throughput_margin_per_unit = st.slider(
     "Margin recovered per takt-equivalent unit of constraint time avoided", 0.0, 500.0, 120.0, step=10.0
 )
 
-if hybrid_row is None:
+if ml_row is None:
     st.warning("No ablation data available.")
 else:
-    tp_count = hybrid_row.rework_avoided / cfg.model.predict.alarm_budget.rework_cost_currency if cfg.model.predict.alarm_budget.rework_cost_currency else 0.0
-    fp_count = hybrid_row.investigation_cost / cfg.model.trust.investigation_cost_currency if cfg.model.trust.investigation_cost_currency else 0.0
+    tp_count = ml_row.rework_avoided / cfg.model.predict.alarm_budget.rework_cost_currency if cfg.model.predict.alarm_budget.rework_cost_currency else 0.0
+    fp_count = ml_row.investigation_cost / cfg.model.trust.investigation_cost_currency if cfg.model.trust.investigation_cost_currency else 0.0
 
     rework_avoided = tp_count * rework_cost
     scrap_avoided = tp_count * (scrap_rate_pct / 100.0) * rework_cost * scrap_cost_multiplier

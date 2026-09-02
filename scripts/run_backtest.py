@@ -123,7 +123,7 @@ def main() -> None:
     print("running chronological ablation backtest...")
     ablation_rows = run_backtest(
         unit_features, station_features, units, readings, manual_checks, defects, cfg.plant, cfg.model, soft_store,
-        spc_signals, anomaly_signals,
+        spc_signals, anomaly_signals, features_cfg,
     )
 
     print("\n=== ABLATION TABLE ===")
